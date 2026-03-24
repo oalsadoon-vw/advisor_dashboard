@@ -812,8 +812,8 @@ def render_score_progress(value):
     c = 2 * 3.14159 * r
     dash = (clamped / 100) * c
     
-    # Red if under 895, green otherwise
-    score_color = "#EF4444" if n < 895 else "#10B981"
+    # Red if under 900, green otherwise
+    score_color = "#EF4444" if n < 900 else "#10B981"
     
     # Display the raw score, not percentage
     score_display = format_score(n)
@@ -898,8 +898,8 @@ def render_satisfaction_score_bar(doc):
     percentage = (score / 1000) * 100
     clamped = max(0, min(100, percentage))
     
-    # Color: red if under 895, green otherwise
-    bar_color = "#EF4444" if score < 895 else "#10B981"
+    # Color: red if under 900, green otherwise
+    bar_color = "#EF4444" if score < 900 else "#10B981"
     
     # Build the HTML string - more compact version
     html = f"""<div style='border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px 16px; background: linear-gradient(180deg, #FFFFFF, #F9FAFB); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); margin-bottom: 0px;'><div style='font-size: 14px; font-weight: 800; color: #111827; margin-bottom: 10px;'>Overall Service Satisfaction Score</div><div style='margin-bottom: 10px;'><div style='display: flex; align-items: center; gap: 10px;'><div style='font-family: ui-monospace, monospace; font-size: 20px; font-weight: 950; color: {bar_color}; min-width: 70px;'>{score:.1f}</div><div style='flex: 1; height: 24px; background: #E5E7EB; border-radius: 12px; position: relative; overflow: hidden;'><div style='position: absolute; top: 0; left: 0; height: 100%; background: {bar_color}; width: {clamped}%; border-radius: 12px; transition: width 0.3s ease;'></div></div><div style='font-size: 13px; font-weight: 700; color: #6B7280; min-width: 50px;'>/ 1000</div></div></div><div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; border-top: 1px solid #E5E7EB; padding-top: 10px;'><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 4px;'>Nation</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: #6B7280;'>{'▼' if score < national else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'#EF4444' if score < national else '#10B981'};'>{national:.1f}</span></div></div><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 4px;'>Region</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: #6B7280;'>{'▼' if score < region else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'#EF4444' if score < region else '#10B981'};'>{region:.1f}</span></div></div><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 4px;'>Area</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: #6B7280;'>{'▼' if score < area else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'#EF4444' if score < area else '#10B981'};'>{area:.1f}</span></div></div></div></div>"""
