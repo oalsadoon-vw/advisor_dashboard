@@ -6,6 +6,7 @@ A full-screen dashboard for daily Tekion Service Employee Rank Excel exports.
 """
 
 import streamlit as st
+import html
 import json
 import re
 import zipfile
@@ -191,24 +192,11 @@ header {visibility: hidden;}
     word-break: break-word;
     overflow-wrap: break-word;
     line-height: 1.2;
-    overflow: visible !important;
-    white-space: normal !important;
     min-width: 0;
 }
 
-/* Override Streamlit's markdown containers to not clip name content */
-[data-testid="stMarkdownContainer"] {
-    overflow: visible !important;
-    min-width: 0;
-}
-
-[data-testid="stColumn"] {
-    overflow: visible !important;
-    min-width: 0;
-}
-
-[data-testid="stColumn"] > div {
-    overflow: visible !important;
+.advisor-row-header {
+    width: 100%;
     min-width: 0;
 }
 
@@ -1274,54 +1262,38 @@ else:
                             spoke_immediately_type = field_types.get(key_spoke_immediately, 'string') if key_spoke_immediately else 'string'
                             kept_informed_type = field_types.get(key_kept_informed, 'string') if key_kept_informed else 'string'
                             
-                            # Header row (always visible) - using responsive layout
-                            col_rank, col_name, col_score, col_fixed, col_spoke, col_kept, col_expand = st.columns([0.5, 4, 1.5, 1.5, 1.5, 1.5, 0.5], gap="small")
-                            
-                            with col_rank:
-                                st.markdown(f"<div class='advisor-rank' style='padding: var(--spacing-sm) var(--spacing-xs);'>#{int(rank) if rank else '—'}</div>", unsafe_allow_html=True)
-                            with col_name:
-                                st.markdown(f"<div class='advisor-name' style='padding: var(--spacing-sm) var(--spacing-xs);'>{name}</div>", unsafe_allow_html=True)
-                            with col_score:
-                                score_rendered = render_score_progress(score)
-                                st.markdown(f"""
-                                <div class='metric-chip'>
-                                    <div class='chip-label'>Satisfaction Score</div>
-                                    <div>{score_rendered}</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            with col_fixed:
-                                if fixed_first_type == 'percent':
-                                    rendered_value = render_circular_progress(fixed_first, key_fixed_first or "")
-                                else:
-                                    rendered_value = f'<span class="mono chip-value">{safe_number(fixed_first) if safe_number(fixed_first) is not None else "—"}</span>'
-                                st.markdown(f"""
-                                <div class='metric-chip'>
-                                    <div class='chip-label'>Fixed right first time</div>
-                                    <div>{rendered_value}</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            with col_spoke:
-                                if spoke_immediately_type == 'percent':
-                                    rendered_value = render_circular_progress(spoke_immediately, key_spoke_immediately or "")
-                                else:
-                                    rendered_value = f'<span class="mono chip-value">{safe_number(spoke_immediately) if safe_number(spoke_immediately) is not None else "—"}</span>'
-                                st.markdown(f"""
-                                <div class='metric-chip'>
-                                    <div class='chip-label'>Spoke to advisor immediately</div>
-                                    <div>{rendered_value}</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            with col_kept:
-                                if kept_informed_type == 'percent':
-                                    rendered_value = render_circular_progress(kept_informed, key_kept_informed or "")
-                                else:
-                                    rendered_value = f'<span class="mono chip-value">{safe_number(kept_informed) if safe_number(kept_informed) is not None else "—"}</span>'
-                                st.markdown(f"""
-                                <div class='metric-chip'>
-                                    <div class='chip-label'>Kept informed</div>
-                                    <div>{rendered_value}</div>
-                                </div>
-                                """, unsafe_allow_html=True)
+                            # Header row: single HTML flex row (avoids Streamlit column clipping on names)
+                            score_rendered = render_score_progress(score)
+                            if fixed_first_type == 'percent':
+                                rendered_fixed = render_circular_progress(fixed_first, key_fixed_first or "")
+                            else:
+                                rendered_fixed = f'<span class="mono chip-value">{safe_number(fixed_first) if safe_number(fixed_first) is not None else "—"}</span>'
+                            if spoke_immediately_type == 'percent':
+                                rendered_spoke = render_circular_progress(spoke_immediately, key_spoke_immediately or "")
+                            else:
+                                rendered_spoke = f'<span class="mono chip-value">{safe_number(spoke_immediately) if safe_number(spoke_immediately) is not None else "—"}</span>'
+                            if kept_informed_type == 'percent':
+                                rendered_kept = render_circular_progress(kept_informed, key_kept_informed or "")
+                            else:
+                                rendered_kept = f'<span class="mono chip-value">{safe_number(kept_informed) if safe_number(kept_informed) is not None else "—"}</span>'
+
+                            safe_name = html.escape(str(name))
+
+                            col_left, col_expand = st.columns([11, 0.5], gap="small")
+                            with col_left:
+                                st.markdown(
+                                    f"""
+<div class="advisor-row-header" style="display:flex;align-items:center;gap:clamp(6px,0.8vw,10px);padding:var(--spacing-sm) var(--spacing-xs);width:100%;min-width:0;">
+  <div class="advisor-rank" style="flex-shrink:0;min-width:44px;">#{int(rank) if rank else '—'}</div>
+  <div class="advisor-name" style="flex:1 1 auto;min-width:0;">{safe_name}</div>
+  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Satisfaction Score</div><div>{score_rendered}</div></div>
+  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Fixed right first time</div><div>{rendered_fixed}</div></div>
+  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Spoke to advisor immediately</div><div>{rendered_spoke}</div></div>
+  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Kept informed</div><div>{rendered_kept}</div></div>
+</div>
+""",
+                                    unsafe_allow_html=True,
+                                )
                             with col_expand:
                                 is_expanded = row_id in st.session_state.expanded_rows
                                 if st.button("▾" if is_expanded else "▸", key=f"expand_{row_id}"):
