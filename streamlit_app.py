@@ -191,6 +191,25 @@ header {visibility: hidden;}
     word-break: break-word;
     overflow-wrap: break-word;
     line-height: 1.2;
+    overflow: visible !important;
+    white-space: normal !important;
+    min-width: 0;
+}
+
+/* Override Streamlit's markdown containers to not clip name content */
+[data-testid="stMarkdownContainer"] {
+    overflow: visible !important;
+    min-width: 0;
+}
+
+[data-testid="stColumn"] {
+    overflow: visible !important;
+    min-width: 0;
+}
+
+[data-testid="stColumn"] > div {
+    overflow: visible !important;
+    min-width: 0;
 }
 
 /* Metric chips - responsive */
@@ -876,7 +895,7 @@ def render_technician_leaderboard(doc):
             <div style='display: flex; align-items: center; gap: 6px; justify-content: space-between;'>
                 <div style='display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;'>
                     <div style='font-size: clamp(13px, 1.0vw, 19px); font-weight: 950; flex-shrink: 0;'>#{int(rank) if rank else '—'}</div>
-                    <div style='font-size: clamp(13px, 1.0vw, 19px); font-weight: 700; word-break: break-word; line-height: 1.2;'>{name}</div>
+                    <div style='font-size: clamp(13px, 1.0vw, 19px); font-weight: 700; word-break: break-word; overflow-wrap: break-word; white-space: normal; overflow: visible; flex: 1; min-width: 0; line-height: 1.2;'>{name}</div>
                 </div>
                 <div style='flex-shrink: 0;'>{rendered_value}</div>
             </div>
@@ -1256,7 +1275,7 @@ else:
                             kept_informed_type = field_types.get(key_kept_informed, 'string') if key_kept_informed else 'string'
                             
                             # Header row (always visible) - using responsive layout
-                            col_rank, col_name, col_score, col_fixed, col_spoke, col_kept, col_expand = st.columns([0.5, 2, 1.5, 1.5, 1.5, 1.5, 0.5], gap="small")
+                            col_rank, col_name, col_score, col_fixed, col_spoke, col_kept, col_expand = st.columns([0.5, 4, 1.5, 1.5, 1.5, 1.5, 0.5], gap="small")
                             
                             with col_rank:
                                 st.markdown(f"<div class='advisor-rank' style='padding: var(--spacing-sm) var(--spacing-xs);'>#{int(rank) if rank else '—'}</div>", unsafe_allow_html=True)
