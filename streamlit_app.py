@@ -875,8 +875,8 @@ def render_technician_leaderboard(doc):
                     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);'>
             <div style='display: flex; align-items: center; gap: 6px; justify-content: space-between;'>
                 <div style='display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;'>
-                    <div style='font-size: 13px; font-weight: 950; min-width: 22px;'>#{int(rank) if rank else '—'}</div>
-                    <div style='font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>{name}</div>
+                    <div style='font-size: clamp(13px, 1.0vw, 19px); font-weight: 950; flex-shrink: 0;'>#{int(rank) if rank else '—'}</div>
+                    <div style='font-size: clamp(13px, 1.0vw, 19px); font-weight: 700; word-break: break-word; line-height: 1.2;'>{name}</div>
                 </div>
                 <div style='flex-shrink: 0;'>{rendered_value}</div>
             </div>
