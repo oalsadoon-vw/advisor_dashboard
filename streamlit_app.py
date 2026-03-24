@@ -52,7 +52,7 @@ CUSTOM_CSS = """
   --font-title: clamp(22px, 2.8vw, 36px);
   --font-subtitle: clamp(12px, 1vw, 16px);
   --font-rank: clamp(18px, 1.6vw, 26px);
-  --font-name: clamp(18px, 1.6vw, 24px);
+  --font-name: clamp(14px, 1.2vw, 20px);
   --font-chip-label: clamp(12px, 1vw, 15px);
   --font-chip-value: clamp(14px, 1.2vw, 20px);
   --font-kpi-label: clamp(12px, 1vw, 15px);
@@ -188,9 +188,9 @@ header {visibility: hidden;}
 .advisor-name {
     font-weight: 950;
     font-size: var(--font-name);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.2;
 }
 
 /* Metric chips - responsive */
