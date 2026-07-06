@@ -18,36 +18,61 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
+from themes import get_theme, rank_icon
+
+# ============================================================================
+# THEME - monthly "wardrobe" skin, swapped via themes.py / THEME_NAME env var
+# ============================================================================
+
+THEME = get_theme()
+
 # ============================================================================
 # PAGE CONFIG - Must be first Streamlit command
 # ============================================================================
 
 st.set_page_config(
-    page_title="Advisor Satisfaction Dashboard",
-    page_icon="📊",
+    page_title=THEME.get("banner_title", "Advisor Satisfaction Dashboard"),
+    page_icon=THEME.get("banner_icon", "📊"),
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # ============================================================================
-# CUSTOM CSS - Recreating the original design
+# CUSTOM CSS - theme-driven design
 # ============================================================================
+
+# Themed :root variable block, built separately from the static CSS body
+# below so we don't have to escape every '{' in the large stylesheet.
+_THEME_ROOT_VARS = """:root {{
+  --bg0: {bg0};
+  --bg1: {bg1};
+  --card: {card};
+  --line: {line};
+  --text: {text};
+  --muted: {muted};
+  --gold: {gold};
+  --silver: {silver};
+  --bronze: {bronze};
+  --good: {good};
+  --bad: {bad};
+  --accent: {accent};
+  --card-gradient: {card_gradient};
+  --bg-gradient: {bg_gradient};
+  --theme-font: {font_family};
+""".format(
+    bg0=THEME["bg0"], bg1=THEME["bg1"], card=THEME["card"], line=THEME["line"],
+    text=THEME["text"], muted=THEME["muted"], gold=THEME["gold"], silver=THEME["silver"],
+    bronze=THEME["bronze"], good=THEME["good"], bad=THEME["bad"],
+    accent=THEME.get("accent", "#3B82F6"),
+    card_gradient=THEME.get("card_gradient", "linear-gradient(180deg, #FFFFFF, #F9FAFB)"),
+    bg_gradient=THEME.get("bg_gradient", "linear-gradient(160deg, #FFFFFF, #F9FAFB)"),
+    font_family=THEME.get("font_family", "inherit"),
+)
 
 CUSTOM_CSS = """
 <style>
-:root {
-  --bg0: #FFFFFF;
-  --bg1: #F9FAFB;
-  --card: #F3F4F6;
-  --line: #E5E7EB;
-  --text: #111827;
-  --muted: #6B7280;
-  --gold: #F59E0B;
-  --silver: #9CA3AF;
-  --bronze: #D97706;
-  --good: #10B981;
-  --bad: #EF4444;
-  
+""" + THEME.get("font_import", "") + """
+""" + _THEME_ROOT_VARS + """
   /* Responsive font sizes - scale with viewport */
   --font-base: clamp(14px, 1.1vw, 18px);
   --font-title: clamp(22px, 2.8vw, 36px);
@@ -76,10 +101,14 @@ CUSTOM_CSS = """
 footer {visibility: hidden;}
 header {visibility: hidden;}
 
-/* Full screen light background */
-.stApp {
-    background: linear-gradient(160deg, #FFFFFF, #F9FAFB);
-    color: #111827;
+/* Full screen background */
+html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    background: var(--bg-gradient, linear-gradient(160deg, #FFFFFF, #F9FAFB)) !important;
+    color: var(--text) !important;
+    font-family: var(--theme-font, inherit);
+}
+[data-testid="stHeader"] {
+    background: transparent !important;
 }
 
 /* Remove default Streamlit padding */
@@ -95,7 +124,7 @@ header {visibility: hidden;}
 .stButton button {
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(10px);
-    color: #111827;
+    color: var(--text);
     font-weight: 800;
     border: 1px solid rgba(0, 0, 0, 0.1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -114,17 +143,17 @@ header {visibility: hidden;}
 
 /* File uploader styling */
 .uploadedFile {
-    border: 1px solid #E5E7EB;
+    border: 1px solid var(--line);
     border-radius: 12px;
     padding: var(--spacing-md);
-    background: #F9FAFB;
+    background: var(--bg1);
 }
 
 /* Expander styling */
 .streamlit-expanderHeader {
     background: transparent !important;
     border: none !important;
-    color: #111827 !important;
+    color: var(--text) !important;
     font-weight: 800 !important;
 }
 
@@ -135,7 +164,7 @@ header {visibility: hidden;}
 
 /* Muted text */
 .muted {
-    color: #A7B3DA;
+    color: var(--muted);
     opacity: 0.95;
 }
 
@@ -202,10 +231,10 @@ header {visibility: hidden;}
 
 /* Metric chips - responsive */
 .metric-chip {
-    border: 1px solid #E5E7EB;
+    border: 1px solid var(--line);
     border-radius: 999px;
     padding: clamp(6px, 0.6vw, 8px) clamp(8px, 0.8vw, 10px);
-    background: #F9FAFB;
+    background: var(--bg1);
     display: flex;
     flex-direction: column;
     gap: clamp(3px, 0.4vw, 5px);
@@ -228,9 +257,9 @@ header {visibility: hidden;}
 
 /* Expanded view - responsive grid - HORIZONTAL OPTIMIZED */
 .kpi-grid-container {
-    border-top: 1px solid #E5E7EB;
+    border-top: 1px solid var(--line);
     padding: var(--spacing-md) var(--spacing-lg);
-    background: #F9FAFB;
+    background: var(--bg1);
 }
 
 .kpi-grid {
@@ -243,10 +272,10 @@ header {visibility: hidden;}
 }
 
 .kpi-card {
-    border: 1px solid #E5E7EB;
+    border: 1px solid var(--line);
     border-radius: clamp(10px, 1vw, 14px);
     padding: var(--spacing-md) var(--spacing-lg);
-    background: #FFFFFF;
+    background: var(--bg0);
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -799,10 +828,10 @@ def render_circular_progress(value, column_name=""):
     dash = (clamped / 100) * c
     threshold = percent_threshold_for_column(column_name)
     good = n >= threshold
-    pct_color = "#10B981" if good else "#EF4444"
+    pct_color = "var(--good)" if good else "var(--bad)"
     
     # Return clean HTML without extra whitespace
-    svg = f'<div class="progress-container"><svg class="progress-svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="{r}" fill="none" stroke="#E5E7EB" stroke-width="4"/><circle cx="18" cy="18" r="{r}" fill="none" stroke="{pct_color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{dash} {c - dash}"/></svg><span class="mono progress-text">{format_percent(n)}</span></div>'
+    svg = f'<div class="progress-container"><svg class="progress-svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="{r}" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="18" cy="18" r="{r}" fill="none" stroke="{pct_color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{dash} {c - dash}"/></svg><span class="mono progress-text">{format_percent(n)}</span></div>'
     return svg
 
 def render_score_progress(value):
@@ -820,13 +849,13 @@ def render_score_progress(value):
     dash = (clamped / 100) * c
     
     # Red if under 900, green otherwise
-    score_color = "#EF4444" if n < 900 else "#10B981"
+    score_color = "var(--bad)" if n < 900 else "var(--good)"
     
     # Display the raw score, not percentage
     score_display = format_score(n)
     
     # Return clean HTML without extra whitespace
-    svg = f'<div class="progress-container"><svg class="progress-svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="{r}" fill="none" stroke="#E5E7EB" stroke-width="4"/><circle cx="18" cy="18" r="{r}" fill="none" stroke="{score_color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{dash} {c - dash}"/></svg><span class="mono progress-text">{score_display}</span></div>'
+    svg = f'<div class="progress-container"><svg class="progress-svg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="{r}" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="18" cy="18" r="{r}" fill="none" stroke="{score_color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{dash} {c - dash}"/></svg><span class="mono progress-text">{score_display}</span></div>'
     return svg
 
 def render_cell(value, cell_type, column_name=""):
@@ -877,8 +906,8 @@ def render_technician_leaderboard(doc):
         
         # Compact single-line card
         st.markdown(f"""
-        <div style='border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; 
-                    background: linear-gradient(180deg, #FFFFFF, #F9FAFB); margin-bottom: 4px;
+        <div style='border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; 
+                    background: var(--card-gradient); margin-bottom: 4px;
                     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);'>
             <div style='display: flex; align-items: center; gap: 6px; justify-content: space-between;'>
                 <div style='display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;'>
@@ -906,10 +935,10 @@ def render_satisfaction_score_bar(doc):
     clamped = max(0, min(100, percentage))
     
     # Color: red if under 900, green otherwise
-    bar_color = "#EF4444" if score < 900 else "#10B981"
+    bar_color = "var(--bad)" if score < 900 else "var(--good)"
     
     # Build the HTML string - more compact version
-    html = f"""<div style='border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px 16px; background: linear-gradient(180deg, #FFFFFF, #F9FAFB); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); margin-bottom: 0px;'><div style='font-size: 14px; font-weight: 800; color: #111827; margin-bottom: 10px;'>Overall Service Satisfaction Score</div><div style='margin-bottom: 10px;'><div style='display: flex; align-items: center; gap: 10px;'><div style='font-family: ui-monospace, monospace; font-size: 20px; font-weight: 950; color: {bar_color}; min-width: 70px;'>{score:.1f}</div><div style='flex: 1; height: 24px; background: #E5E7EB; border-radius: 12px; position: relative; overflow: hidden;'><div style='position: absolute; top: 0; left: 0; height: 100%; background: {bar_color}; width: {clamped}%; border-radius: 12px; transition: width 0.3s ease;'></div></div><div style='font-size: 13px; font-weight: 700; color: #6B7280; min-width: 50px;'>/ 1000</div></div></div><div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; border-top: 1px solid #E5E7EB; padding-top: 10px;'><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 4px;'>Nation</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: #6B7280;'>{'▼' if score < national else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'#EF4444' if score < national else '#10B981'};'>{national:.1f}</span></div></div><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 4px;'>Region</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: #6B7280;'>{'▼' if score < region else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'#EF4444' if score < region else '#10B981'};'>{region:.1f}</span></div></div><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 4px;'>Area</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: #6B7280;'>{'▼' if score < area else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'#EF4444' if score < area else '#10B981'};'>{area:.1f}</span></div></div></div></div>"""
+    html = f"""<div style='border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: var(--card-gradient); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); margin-bottom: 0px;'><div style='font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 10px;'>Overall Service Satisfaction Score</div><div style='margin-bottom: 10px;'><div style='display: flex; align-items: center; gap: 10px;'><div style='font-family: ui-monospace, monospace; font-size: 20px; font-weight: 950; color: {bar_color}; min-width: 70px;'>{score:.1f}</div><div style='flex: 1; height: 24px; background: var(--line); border-radius: 12px; position: relative; overflow: hidden;'><div style='position: absolute; top: 0; left: 0; height: 100%; background: {bar_color}; width: {clamped}%; border-radius: 12px; transition: width 0.3s ease;'></div></div><div style='font-size: 13px; font-weight: 700; color: var(--muted); min-width: 50px;'>/ 1000</div></div></div><div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; border-top: 1px solid var(--line); padding-top: 10px;'><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px;'>Nation</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: var(--muted);'>{'▼' if score < national else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'var(--bad)' if score < national else 'var(--good)'};'>{national:.1f}</span></div></div><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px;'>Region</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: var(--muted);'>{'▼' if score < region else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'var(--bad)' if score < region else 'var(--good)'};'>{region:.1f}</span></div></div><div style='text-align: center;'><div style='font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px;'>Area</div><div style='display: flex; align-items: center; justify-content: center; gap: 3px;'><span style='font-size: 10px; color: var(--muted);'>{'▼' if score < area else '▲'}</span><span style='font-family: ui-monospace, monospace; font-size: 16px; font-weight: 800; color: {'var(--bad)' if score < area else 'var(--good)'};'>{area:.1f}</span></div></div></div></div>"""
     
     st.markdown(html, unsafe_allow_html=True)
 
@@ -972,6 +1001,19 @@ if 'expanded_rows' not in st.session_state:
 
 # Inject custom CSS
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# Inject theme decoration (stars/fireworks CSS keyframes + floating elements)
+if THEME.get("decoration_css"):
+    st.markdown(f"<style>{THEME['decoration_css']}</style>", unsafe_allow_html=True)
+if THEME.get("decoration_html"):
+    st.markdown(THEME["decoration_html"], unsafe_allow_html=True)
+
+# Seasonal hero banner (only for non-default themes to keep classic look untouched)
+if THEME is not None and THEME.get("label") != "Classic":
+    st.markdown(
+        f"""<div class="theme-banner"><div class="theme-banner-title">{THEME.get("banner_icon", "")} {THEME.get("banner_title", "")}</div></div>""",
+        unsafe_allow_html=True,
+    )
 
 # Navigation
 col1, col2, col3 = st.columns([1, 6, 1])
@@ -1092,8 +1134,8 @@ else:
         st.markdown("<h1 class='dashboard-title'>Service Employee Dashboard</h1>", unsafe_allow_html=True)
         st.info("📂 No data available. Please upload an XLSX file to get started.")
         st.markdown("""
-        <div style='padding: var(--spacing-xl); border: 1px solid #E5E7EB; 
-                    border-radius: clamp(12px, 1.2vw, 18px); background: #F9FAFB;'>
+        <div style='padding: var(--spacing-xl); border: 1px solid var(--line); 
+                    border-radius: clamp(12px, 1.2vw, 18px); background: var(--bg1);'>
             <h3 style='font-size: var(--font-name);'>Getting Started</h3>
             <ol style='font-size: var(--font-base); line-height: 1.6;'>
                 <li>Click the "Upload" button in the top right</li>
@@ -1181,10 +1223,10 @@ else:
             st.markdown("""
             <div style='display: grid; grid-template-columns: 0.5fr 2fr 1.5fr 1.5fr 1.5fr 1.5fr 0.5fr; 
                         gap: clamp(4px, 0.5vw, 8px); padding: 3px 0; margin-bottom: 3px;
-                        border-bottom: 1px solid #E5E7EB;'>
-                <div style='font-size: 10px; font-weight: 700; color: #6B7280; text-align: center;'>Rank</div>
-                <div style='font-size: 10px; font-weight: 700; color: #6B7280;'>Name</div>
-                <div style='font-size: 10px; font-weight: 700; color: #6B7280; text-align: center;'>Scores</div>
+                        border-bottom: 1px solid var(--line);'>
+                <div style='font-size: 10px; font-weight: 700; color: var(--muted); text-align: center;'>Rank</div>
+                <div style='font-size: 10px; font-weight: 700; color: var(--muted);'>Name</div>
+                <div style='font-size: 10px; font-weight: 700; color: var(--muted); text-align: center;'>Scores</div>
                 <div></div>
                 <div></div>
                 <div></div>
@@ -1243,13 +1285,13 @@ else:
                         
                         # Rank styling - all dividers now gray
                         rank_class = rank_color(rank)
-                        border_color = "#E5E7EB"
+                        border_color = "var(--line)"
                         
                         # Card container with responsive classes
                         with st.container():
                             st.markdown(f"""
                             <div class='advisor-card' style='border: 2px solid {border_color}; 
-                                        background: linear-gradient(180deg, #FFFFFF, #F9FAFB);'>
+                                        background: var(--card-gradient);'>
                             """, unsafe_allow_html=True)
                             
                             # Get values for collapsed view metrics
@@ -1330,7 +1372,7 @@ else:
         # DIVIDER COLUMN
         with col_divider:
             st.markdown("""
-            <div style='height: 100%; border-left: 2px solid #E5E7EB; margin: 0 auto;'></div>
+            <div style='height: 100%; border-left: 2px solid var(--line); margin: 0 auto;'></div>
             """, unsafe_allow_html=True)
         
         # RIGHT COLUMN: Technicians
@@ -1340,12 +1382,12 @@ else:
             # Add column headers
             st.markdown("""
             <div style='display: flex; align-items: center; gap: 6px; justify-content: space-between;
-                        padding: 6px 10px; margin-bottom: 6px; border-bottom: 1px solid #E5E7EB;'>
+                        padding: 6px 10px; margin-bottom: 6px; border-bottom: 1px solid var(--line);'>
                 <div style='display: flex; align-items: center; gap: 6px; flex: 1;'>
-                    <div style='font-size: 10px; font-weight: 700; color: #6B7280; min-width: 22px;'>Rank</div>
-                    <div style='font-size: 10px; font-weight: 700; color: #6B7280;'>Name</div>
+                    <div style='font-size: 10px; font-weight: 700; color: var(--muted); min-width: 22px;'>Rank</div>
+                    <div style='font-size: 10px; font-weight: 700; color: var(--muted);'>Name</div>
                 </div>
-                <div style='font-size: 10px; font-weight: 700; color: #6B7280; flex-shrink: 0;'>Fixed Right First Time</div>
+                <div style='font-size: 10px; font-weight: 700; color: var(--muted); flex-shrink: 0;'>Fixed Right First Time</div>
             </div>
             """, unsafe_allow_html=True)
             
