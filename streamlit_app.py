@@ -898,7 +898,7 @@ def render_satisfaction_score_bar(doc):
     
     score = doc.get('score', 0)
     national = doc.get('national', 0)
-    region = doc.get('region', 0)
+    region = 910.0
     area = doc.get('area', 0)
     
     # Calculate percentage for bar (out of 1000)
