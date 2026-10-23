@@ -6,6 +6,7 @@ A full-screen dashboard for daily Tekion Service Employee Rank Excel exports.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import html
 import json
 import re
@@ -17,6 +18,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from uuid import uuid4
+
+from advisor_layout import load_metric_order, normalize_metric_order, save_metric_order
 
 # ============================================================================
 # PAGE CONFIG - Must be first Streamlit command
@@ -27,6 +31,12 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
+)
+
+ADVISOR_LAYOUT_PATH = Path(__file__).parent / 'storage' / 'advisor_layout.json'
+advisor_layout_editor = components.declare_component(
+    'advisor_layout_editor',
+    path=str(Path(__file__).parent / 'advisor_layout_component'),
 )
 
 # ============================================================================
@@ -198,6 +208,54 @@ header {visibility: hidden;}
 .advisor-row-header {
     width: 100%;
     min-width: 0;
+    container: advisor-summary / inline-size;
+    padding: var(--spacing-sm) var(--spacing-xs);
+}
+
+.advisor-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(0, 4fr);
+    gap: 10px;
+    align-items: center;
+}
+
+.advisor-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.advisor-metrics {
+    display: grid;
+    grid-template-columns: repeat(var(--metric-count, 4), minmax(0, 1fr));
+    gap: 8px;
+    min-width: 0;
+}
+
+.advisor-metrics .metric-chip {
+    box-sizing: border-box;
+    border-radius: 16px;
+    width: auto;
+}
+
+.advisor-metrics .chip-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.advisor-metrics .progress-container { gap: 5px; }
+.advisor-metrics .progress-svg { width: 30px; height: 30px; }
+.advisor-metrics .progress-text { min-width: 0; font-size: 14px; }
+
+@container advisor-summary (max-width: 760px) {
+    .advisor-summary-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container advisor-summary (max-width: 600px) {
+    .advisor-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container advisor-summary (max-width: 280px) {
+    .advisor-metrics { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Metric chips - responsive */
@@ -838,6 +896,17 @@ def render_cell(value, cell_type, column_name=""):
         return f'<span class="mono">{n if n is not None else "—"}</span>'
     return f'<span>{value if value not in ["", None] else "—"}</span>'
 
+
+def render_advisor_metric(row, column, field_types, score_column):
+    """Use the same value and formatting in the layout preview and advisor rows."""
+    value = row.get(column)
+    if column == score_column:
+        return render_score_progress(value)
+    cell_type = field_types.get(column, 'string')
+    if cell_type not in ('number', 'percent'):
+        value = html.escape(str(value)) if value not in ('', None) else None
+    return render_cell(value, cell_type, column)
+
 def render_technician_leaderboard(doc):
     """Render simplified technician leaderboard showing only rank, name, and Fixed Right First Time"""
     if doc is None:
@@ -965,6 +1034,15 @@ if 'doc' not in st.session_state:
 
 if 'expanded_rows' not in st.session_state:
     st.session_state.expanded_rows = set()
+
+if 'advisor_metric_order' not in st.session_state:
+    st.session_state.advisor_metric_order = load_metric_order(ADVISOR_LAYOUT_PATH)
+if 'advisor_layout_edit_session' not in st.session_state:
+    st.session_state.advisor_layout_edit_session = None
+if 'advisor_layout_last_event' not in st.session_state:
+    st.session_state.advisor_layout_last_event = None
+if 'advisor_layout_error' not in st.session_state:
+    st.session_state.advisor_layout_error = None
 
 # ============================================================================
 # MAIN APP
@@ -1175,7 +1253,19 @@ else:
             st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
             
             # Advisors section (continues in same left column)
-            st.markdown("<h2 style='font-size: clamp(18px, 2vw, 24px); font-weight: 800; margin-bottom: 4px; margin-top: 0px;'>Advisors</h2>", unsafe_allow_html=True)
+            advisor_heading, advisor_edit = st.columns([3, 1])
+            with advisor_heading:
+                st.markdown("<h2 style='font-size: clamp(18px, 2vw, 24px); font-weight: 800; margin-bottom: 4px; margin-top: 0px;'>Advisors</h2>", unsafe_allow_html=True)
+            with advisor_edit:
+                if doc_advisors and doc_advisors.get('dataset', {}).get('rows'):
+                    if st.button("Edit cards", key='edit_advisor_cards',
+                                 help="Change the cards shown for every advisor",
+                                 disabled=bool(st.session_state.advisor_layout_edit_session)):
+                        st.session_state.advisor_layout_edit_session = uuid4().hex
+                        st.session_state.advisor_layout_error = None
+                        st.rerun()
+            if st.session_state.pop('advisor_layout_saved', False):
+                st.success("Card layout saved for all advisors.")
             
             # Add column headers
             st.markdown("""
@@ -1221,11 +1311,63 @@ else:
                 sorted_rows = sorted(rows, key=lambda r: safe_number(r.get(key_rank)) if key_rank else float('inf'))
                 sorted_rows = [r for r in sorted_rows if safe_number(r.get(key_rank) if key_rank else None) is not None]
                 
-                # Detail columns (exclude only collapsed view fields and metadata)
-                exclude = set([key_employee, key_dealer, key_area, key_region, key_rank, key_score, key_fixed_first, key_spoke_immediately, key_kept_informed])
-                exclude = {c for c in exclude if c}
-                detail_columns = [c for c in columns if c not in exclude]
-                
+                # One ordered layout controls both the summary and details for every advisor.
+                metadata_columns = {key_employee, key_dealer, key_area, key_region, key_rank}
+                available_metrics = [c for c in columns if c not in metadata_columns]
+                default_metrics = [c for c in [key_score, key_fixed_first,
+                                   key_spoke_immediately, key_kept_informed] if c]
+                metric_order = normalize_metric_order(
+                    available_metrics, default_metrics, st.session_state.advisor_metric_order)
+                collapsed_count = min(4, len(metric_order))
+                collapsed_columns = metric_order[:collapsed_count]
+                detail_columns = metric_order[collapsed_count:]
+
+                edit_session = st.session_state.advisor_layout_edit_session
+                if edit_session and sorted_rows and metric_order:
+                    preview = sorted_rows[0]
+                    result = advisor_layout_editor(
+                        session_id=edit_session,
+                        advisor_name=normalize_display_name(preview.get(key_employee)) if key_employee else "Advisor",
+                        advisor_rank=safe_number(preview.get(key_rank)) if key_rank else None,
+                        metrics=[{'id': c, 'label': c,
+                                  'html': render_advisor_metric(preview, c, field_types, key_score)}
+                                 for c in available_metrics],
+                        order=metric_order,
+                        default_order=normalize_metric_order(available_metrics, default_metrics),
+                        collapsed_count=collapsed_count,
+                        key=f'advisor_layout_editor_{edit_session}',
+                        default=None,
+                    )
+                    if (isinstance(result, dict) and result.get('session_id') == edit_session
+                            and isinstance(result.get('event_id'), str) and result['event_id']
+                            and result['event_id'] != st.session_state.advisor_layout_last_event):
+                        # Streamlit retains a component's last value on unrelated reruns.
+                        # Consume each submission once, including failed writes.
+                        st.session_state.advisor_layout_last_event = result['event_id']
+                        st.session_state.advisor_layout_error = None
+                        if result.get('action') == 'cancel':
+                            st.session_state.advisor_layout_edit_session = None
+                            st.rerun()
+                        elif result.get('action') == 'save':
+                            proposed = result.get('order')
+                            if (not isinstance(proposed, list)
+                                    or not all(isinstance(c, str) for c in proposed)
+                                    or len(proposed) != len(available_metrics)
+                                    or set(proposed) != set(available_metrics)):
+                                st.session_state.advisor_layout_error = "The available metrics changed. Cancel and reopen Edit cards to try again."
+                            else:
+                                try:
+                                    save_metric_order(ADVISOR_LAYOUT_PATH, proposed)
+                                except OSError:
+                                    st.session_state.advisor_layout_error = "Could not save the card layout. Check that the storage folder is writable, then try Save again."
+                                else:
+                                    st.session_state.advisor_metric_order = proposed
+                                    st.session_state.advisor_layout_edit_session = None
+                                    st.session_state.advisor_layout_saved = True
+                                    st.rerun()
+                    if st.session_state.advisor_layout_error:
+                        st.error(st.session_state.advisor_layout_error)
+
                 # Leaderboard
                 if not sorted_rows:
                     st.warning("No advisor data found in the uploaded file.")
@@ -1252,46 +1394,22 @@ else:
                                         background: linear-gradient(180deg, #FFFFFF, #F9FAFB);'>
                             """, unsafe_allow_html=True)
                             
-                            # Get values for collapsed view metrics
-                            fixed_first = row.get(key_fixed_first) if key_fixed_first else None
-                            spoke_immediately = row.get(key_spoke_immediately) if key_spoke_immediately else None
-                            kept_informed = row.get(key_kept_informed) if key_kept_informed else None
-                            
-                            # Get field types for rendering
-                            fixed_first_type = field_types.get(key_fixed_first, 'string') if key_fixed_first else 'string'
-                            spoke_immediately_type = field_types.get(key_spoke_immediately, 'string') if key_spoke_immediately else 'string'
-                            kept_informed_type = field_types.get(key_kept_informed, 'string') if key_kept_informed else 'string'
-                            
-                            # Header row: single HTML flex row (avoids Streamlit column clipping on names)
-                            score_rendered = render_score_progress(score)
-                            if fixed_first_type == 'percent':
-                                rendered_fixed = render_circular_progress(fixed_first, key_fixed_first or "")
-                            else:
-                                rendered_fixed = f'<span class="mono chip-value">{safe_number(fixed_first) if safe_number(fixed_first) is not None else "—"}</span>'
-                            if spoke_immediately_type == 'percent':
-                                rendered_spoke = render_circular_progress(spoke_immediately, key_spoke_immediately or "")
-                            else:
-                                rendered_spoke = f'<span class="mono chip-value">{safe_number(spoke_immediately) if safe_number(spoke_immediately) is not None else "—"}</span>'
-                            if kept_informed_type == 'percent':
-                                rendered_kept = render_circular_progress(kept_informed, key_kept_informed or "")
-                            else:
-                                rendered_kept = f'<span class="mono chip-value">{safe_number(kept_informed) if safe_number(kept_informed) is not None else "—"}</span>'
-
+                            metric_chips = ''.join(
+                                '<div class="metric-chip"><div class="chip-label">'
+                                + html.escape(c) + '</div><div>'
+                                + render_advisor_metric(row, c, field_types, key_score)
+                                + '</div></div>' for c in collapsed_columns
+                            )
                             safe_name = html.escape(str(name))
-
-                            col_left, col_expand = st.columns([11, 0.5], gap="small")
-                            with col_left:
+                            col_advisor, col_expand = st.columns([11, 0.5], gap="small")
+                            with col_advisor:
                                 st.markdown(
-                                    f"""
-<div class="advisor-row-header" style="display:flex;align-items:center;gap:clamp(6px,0.8vw,10px);padding:var(--spacing-sm) var(--spacing-xs);width:100%;min-width:0;">
-  <div class="advisor-rank" style="flex-shrink:0;min-width:44px;">#{int(rank) if rank else '—'}</div>
-  <div class="advisor-name" style="flex:1 1 auto;min-width:0;">{safe_name}</div>
-  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Satisfaction Score</div><div>{score_rendered}</div></div>
-  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Fixed right first time</div><div>{rendered_fixed}</div></div>
-  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Spoke to advisor immediately</div><div>{rendered_spoke}</div></div>
-  <div class="metric-chip" style="flex:0 1 auto;min-width:0;"><div class="chip-label">Kept informed</div><div>{rendered_kept}</div></div>
-</div>
-""",
+                                    '<div class="advisor-row-header"><div class="advisor-summary-grid">'
+                                    '<div class="advisor-identity">'
+                                    f'<div class="advisor-rank">#{int(rank) if rank else "—"}</div>'
+                                    f'<div class="advisor-name">{safe_name}</div></div>'
+                                    f'<div class="advisor-metrics" style="--metric-count:{collapsed_count};">'
+                                    + metric_chips + '</div></div></div>',
                                     unsafe_allow_html=True,
                                 )
                             with col_expand:
@@ -1312,7 +1430,7 @@ else:
                                 for col_name in detail_columns:
                                     value = row.get(col_name)
                                     cell_type = field_types.get(col_name, 'string')
-                                    rendered = render_cell(value, cell_type, col_name)
+                                    rendered = render_advisor_metric(row, col_name, field_types, key_score)
                                     
                                     # Escape HTML in column name to prevent breaking the layout
                                     safe_col_name = str(col_name).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#39;')

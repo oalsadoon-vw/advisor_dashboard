@@ -18,7 +18,7 @@ streamlit run streamlit_app.py
 
 ### 1️⃣ Push to GitHub
 ```bash
-git add streamlit_app.py requirements.txt .streamlit/
+git add streamlit_app.py advisor_layout.py advisor_layout_component/ requirements.txt
 git commit -m "Add Streamlit version"
 git push
 ```
@@ -55,7 +55,9 @@ Visit: **https://share.streamlit.io**
 
 ## Files Created
 
-✅ `streamlit_app.py` - Main application (all-in-one)
+✅ `streamlit_app.py` - Main dashboard
+✅ `advisor_layout.py` - Shared card layout and preference storage
+✅ `advisor_layout_component/` - Drag and keyboard layout editor
 ✅ `requirements.txt` - Just needs `streamlit`
 ✅ `.streamlit/config.toml` - Dark theme configuration
 ✅ `run_streamlit.sh` - Quick start script for Mac/Linux
@@ -75,3 +77,11 @@ Visit: **https://share.streamlit.io**
 ## That's It! 🎉
 
 Your dashboard is now ready for Streamlit Cloud deployment!
+
+### Arrange advisor cards
+
+Click **Edit cards** beside Advisors. The editor previews the highest-ranked advisor: drag cards to reorder them, or move a metric from **Expanded details** into the first four **Collapsed view** positions. The arrow buttons and Alt + arrow keys on a drag handle provide the same controls without dragging.
+
+Choose **Save for all advisors** to apply the layout to every advisor. **Cancel** discards the preview; **Reset default** restores the original order in the preview until saved. Each advisor keeps their own metric values. Layout preferences are saved separately in `storage/advisor_layout.json` and reload when the app restarts. Keep `advisor_layout.py` and the `advisor_layout_component` directory beside `streamlit_app.py` when deploying; no frontend build or extra dependency is required.
+
+Run regression checks with `python -m unittest discover -s tests -v` (after installing `requirements.txt`) and `node --test advisor_layout_component/editor.test.cjs`.

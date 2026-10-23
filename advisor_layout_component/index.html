@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Edit advisor card placement</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="editor.js"></script>
+  </head>
+  <body>
+    <main class="layout-editor" id="layout-editor" aria-labelledby="editor-title" aria-busy="true">
+      <div class="editor-heading">
+        <div>
+          <h1 id="editor-title">Edit card placement</h1>
+          <p class="editor-description" id="editor-description">Drag cards between sections, or use the arrows to move them. Changes apply to all advisors when saved.</p>
+        </div>
+        <button class="button button-reset" id="reset-button" type="button" disabled>Reset default</button>
+      </div>
+
+      <div class="advisor-preview" aria-label="Advisor preview">
+        <span class="advisor-rank" id="advisor-rank"></span>
+        <span class="advisor-name" id="advisor-name"></span>
+        <span class="preview-label">Layout preview</span>
+      </div>
+
+      <div class="placement-sections" id="placement-sections">
+        <section class="placement-section" data-zone="collapsed" aria-labelledby="collapsed-heading">
+          <div class="section-heading">
+            <h2 id="collapsed-heading">Collapsed view</h2>
+            <span class="section-note" id="collapsed-note">First 4 cards · always visible</span>
+          </div>
+          <div class="metric-grid" id="collapsed-grid" role="list" aria-label="Collapsed view cards"></div>
+        </section>
+        <section class="placement-section expanded-section" data-zone="expanded" aria-labelledby="expanded-heading">
+          <div class="section-heading">
+            <h2 id="expanded-heading">Expanded details</h2>
+            <span class="section-note">Shown when an advisor is expanded</span>
+          </div>
+          <div class="metric-grid" id="expanded-grid" role="list" aria-label="Expanded detail cards"></div>
+          <p class="empty-message" id="expanded-empty" hidden>All available cards are in the collapsed view.</p>
+        </section>
+      </div>
+
+      <div class="editor-footer">
+        <p class="draft-note" id="draft-note">Preview only · no changes saved</p>
+        <div class="footer-actions">
+          <button class="button" id="cancel-button" type="button" disabled>Cancel</button>
+          <button class="button button-primary" id="save-button" type="button" disabled>Save for all advisors</button>
+        </div>
+      </div>
+      <p class="sr-only" id="keyboard-help">On a drag handle, hold Alt and press an arrow key to move the card. Press Escape to cancel a drag.</p>
+      <p class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+    </main>
+    <div class="drop-marker" id="drop-marker" aria-hidden="true" hidden></div>
+  </body>
+</html>

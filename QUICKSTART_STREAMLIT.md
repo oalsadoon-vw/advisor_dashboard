@@ -18,7 +18,7 @@ streamlit run streamlit_app.py
 
 ### 1️⃣ Push to GitHub
 ```bash
-git add streamlit_app.py requirements.txt .streamlit/
+git add streamlit_app.py advisor_layout.py advisor_layout_component/ requirements.txt
 git commit -m "Add Streamlit version"
 git push
 ```
@@ -55,7 +55,9 @@ Visit: **https://share.streamlit.io**
 
 ## Files Created
 
-✅ `streamlit_app.py` - Main application (all-in-one)
+✅ `streamlit_app.py` - Main dashboard
+✅ `advisor_layout.py` - Shared card layout and preference storage
+✅ `advisor_layout_component/` - Drag and keyboard layout editor
 ✅ `requirements.txt` - Just needs `streamlit`
 ✅ `.streamlit/config.toml` - Dark theme configuration
 ✅ `run_streamlit.sh` - Quick start script for Mac/Linux
